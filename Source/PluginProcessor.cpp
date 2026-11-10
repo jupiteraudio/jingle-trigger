@@ -28,7 +28,9 @@ AudioProcessorValueTreeState::ParameterLayout JingleTriggerProcessor::createLayo
 }
 
 JingleTriggerProcessor::JingleTriggerProcessor()
-    : AudioProcessor (BusesProperties().withOutput ("Output", AudioChannelSet::stereo(), true)),
+    : AudioProcessor (BusesProperties()
+                        .withInput  ("Input",  AudioChannelSet::stereo(), false)   // optional: lets hosts that open plugins as stereo-in/stereo-out load it
+                        .withOutput ("Output", AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "STATE", createLayout())
 {
     formatManager.registerBasicFormats();
@@ -47,7 +49,9 @@ JingleTriggerProcessor::JingleTriggerProcessor()
 
 bool JingleTriggerProcessor::isBusesLayoutSupported (const BusesLayout& l) const
 {
-    return l.getMainOutputChannelSet() == AudioChannelSet::stereo();
+    const auto in = l.getMainInputChannelSet();
+    return l.getMainOutputChannelSet() == AudioChannelSet::stereo()
+        && (in.isDisabled() || in == AudioChannelSet::stereo());
 }
 
 void JingleTriggerProcessor::prepareToPlay (double sr, int maxBlock)
@@ -245,7 +249,12 @@ void JingleTriggerProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffe
 {
     ScopedNoDenormals noDenormals;
     const int n = buffer.getNumSamples();
-    buffer.clear();
+
+    // If the host feeds us audio (plugin used inline in a chain) pass it through and add on top;
+    // otherwise start from silence.
+    const bool hasInput = getBusCount (true) > 0 && getBus (true, 0)->isEnabled();
+    if (! hasInput)
+        buffer.clear();
 
     // ---- block-start events: parameter edges + GUI buttons (16 cheap atomic loads)
     const bool stopNow = stopAllP->load() >= 0.5f;
