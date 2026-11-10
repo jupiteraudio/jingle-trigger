@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(JingleTrigger VERSION 1.0.0)
 
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")   # universal: Apple Silicon + Intel
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Static runtime on Windows: no VC++ redistributable needed on the show laptop
@@ -13,11 +15,17 @@ FetchContent_Declare(JUCE
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(JUCE)
 
+if(APPLE)
+    set(JT_FORMATS VST3 AU)
+else()
+    set(JT_FORMATS VST3)
+endif()
+
 juce_add_plugin(JingleTrigger
     COMPANY_NAME "Jupiter Audio"
     PLUGIN_MANUFACTURER_CODE Jupa
     PLUGIN_CODE JTrg
-    FORMATS VST3
+    FORMATS ${JT_FORMATS}
     PRODUCT_NAME "Jingle Trigger"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE

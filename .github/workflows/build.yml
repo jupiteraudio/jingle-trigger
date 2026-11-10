@@ -1,7 +1,28 @@
-name: Build Windows VST3
+name: Build plugins
 on: [push, workflow_dispatch]
 jobs:
-  build:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Ad-hoc sign (required for arm64)
+        run: |
+          for b in build/JingleTrigger_artefacts/Release/VST3/*.vst3 build/JingleTrigger_artefacts/Release/AU/*.component; do
+            codesign --force --deep -s - "$b"
+          done
+      - name: Zip (keeps bundle structure intact)
+        run: |
+          cd build/JingleTrigger_artefacts/Release
+          zip -qry "$GITHUB_WORKSPACE/JingleTrigger-macOS.zip" VST3 AU
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JingleTrigger-macOS
+          path: JingleTrigger-macOS.zip
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
